@@ -1,6 +1,6 @@
 # Amigo Secreto Online
 
-O app usa Supabase Auth para gerar links individuais de convite e acesso, sem enviar e-mails. O organizador compartilha cada link diretamente com o participante correspondente. Todos os participantes autenticados podem ver os nomes e enderecos uns dos outros; visitantes sem convite nao podem acessar esses dados.
+O app usa Supabase Auth para gerar links individuais de convite e acesso, sem enviar e-mails. O organizador compartilha cada link diretamente com o participante correspondente. A sessao fica persistida no navegador por ate 30 dias ou ate a pessoa sair. Todos os participantes autenticados podem ver os nomes e enderecos uns dos outros; visitantes sem convite nao podem acessar esses dados.
 
 ## Configurar o banco
 
@@ -32,7 +32,7 @@ O GitHub Pages nao executa apps Python/Streamlit; use o Streamlit Community Clou
 
 ## Executar localmente
 
-Instale as dependencias e crie `.streamlit/secrets.toml` com os mesmos valores acima. Esse arquivo esta no `.gitignore` para evitar o envio de credenciais ao GitHub.
+Instale as dependencias de `requirements.txt` e crie `.streamlit/secrets.toml` com os mesmos valores acima. Esse arquivo esta no `.gitignore` para evitar o envio de credenciais ao GitHub.
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -41,4 +41,4 @@ streamlit run main.py
 
 ## Limites de identidade e privacidade
 
-O app pede um clique adicional antes de consumir o token. Mantenha privada a senha do organizador e nunca compartilhe a chave `service_role`; ela permite operacoes administrativas. Trate cada link gerado como uma credencial: envie-o apenas ao participante correspondente e gere outro se for compartilhado por engano. As politicas RLS limitam as gravacoes a identidade autenticada e restringem a leitura ao grupo autenticado. Cada participante pode ver os enderecos cadastrados, portanto convide apenas pessoas autorizadas a acessar esses dados.
+O app pede um clique adicional antes de consumir o token. O cookie de sessao guarda o refresh token no navegador por ate 30 dias; use **Sair** em dispositivos compartilhados. Mantenha privada a senha do organizador e nunca compartilhe a chave `service_role`; ela permite operacoes administrativas. Trate cada link gerado como uma credencial: envie-o apenas ao participante correspondente e gere outro se for compartilhado por engano. As politicas RLS limitam as gravacoes a identidade autenticada e restringem a leitura ao grupo autenticado. Cada participante pode ver os enderecos cadastrados, portanto convide apenas pessoas autorizadas a acessar esses dados.

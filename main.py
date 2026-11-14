@@ -5,6 +5,10 @@ from urllib.parse import urlencode
 
 import requests
 import streamlit as st
+from streamlit_cookies_controller import CookieController
+
+COOKIE_SESSAO = "amigo_secreto_refresh_token"
+COOKIE_SESSAO_DURACAO = 30 * 24 * 60 * 60
 
 st.set_page_config(
     page_title="Amigo Secreto Online",
@@ -70,10 +74,50 @@ def requisicao_supabase(configuracao, caminho, metodo="GET", token=None, dados=N
     return resposta.json() if resposta.content else None
 
 
-def validar_sessao(configuracao):
+def salvar_refresh_token(configuracao, cookies, sessao):
+    cookies.set(
+        COOKIE_SESSAO,
+        sessao["refresh_token"],
+        path="/",
+        expires=datetime.datetime.now() + datetime.timedelta(days=30),
+        max_age=COOKIE_SESSAO_DURACAO,
+        secure=configuracao["app_url"].startswith("https://"),
+        same_site="lax",
+    )
+
+
+def limpar_sessao(configuracao, cookies):
+    st.session_state.pop("sessao_supabase", None)
+    if cookies.get(COOKIE_SESSAO) is not None:
+        cookies.remove(
+            COOKIE_SESSAO,
+            path="/",
+            secure=configuracao["app_url"].startswith("https://"),
+            same_site="lax",
+        )
+
+
+def renovar_sessao(configuracao, cookies, refresh_token):
+    sessao = requisicao_supabase(
+        configuracao,
+        "/auth/v1/token",
+        metodo="POST",
+        token=configuracao["anon_key"],
+        params={"grant_type": "refresh_token"},
+        dados={"refresh_token": refresh_token},
+    )
+    st.session_state.sessao_supabase = sessao
+    salvar_refresh_token(configuracao, cookies, sessao)
+    return sessao
+
+
+def validar_sessao(configuracao, cookies):
     sessao = st.session_state.get("sessao_supabase")
     if not sessao:
-        return None
+        refresh_token = cookies.get(COOKIE_SESSAO)
+        if not refresh_token:
+            return None
+        sessao = renovar_sessao(configuracao, cookies, refresh_token)
 
     try:
         usuario = requisicao_supabase(
@@ -82,20 +126,13 @@ def validar_sessao(configuracao):
     except requests.HTTPError as erro:
         if erro.response is None or erro.response.status_code != 401:
             raise
-        renovada = requisicao_supabase(
-            configuracao,
-            "/auth/v1/token",
-            metodo="POST",
-            token=configuracao["anon_key"],
-            params={"grant_type": "refresh_token"},
-            dados={"refresh_token": sessao["refresh_token"]},
-        )
-        st.session_state.sessao_supabase = renovada
+        sessao = renovar_sessao(configuracao, cookies, sessao["refresh_token"])
         usuario = requisicao_supabase(
-            configuracao, "/auth/v1/user", token=renovada["access_token"]
+            configuracao, "/auth/v1/user", token=sessao["access_token"]
         )
     sessao["user"] = usuario
     st.session_state.sessao_supabase = sessao
+    salvar_refresh_token(configuracao, cookies, sessao)
     return usuario
 
 
@@ -117,10 +154,13 @@ def confirmar_link(configuracao):
                 dados={"token_hash": token_hash, "type": tipo},
             )
             st.session_state.sessao_supabase = sessao
+            salvar_refresh_token(configuracao, cookies, sessao)
             st.query_params.clear()
             st.rerun()
         except requests.RequestException:
             st.error("Este link expirou ou já foi usado. Peça outro link ao organizador.")
+    if not token_hash:
+        return False
     return True
 
 
@@ -262,11 +302,13 @@ def main():
         )
         st.stop()
 
+    cookies = CookieController(key="amigo_secreto_cookies")
+
     try:
-        usuario = validar_sessao(configuracao)
+        usuario = validar_sessao(configuracao, cookies)
     except requests.RequestException:
         st.error("Não foi possível validar sua sessão. Tente novamente.")
-        st.session_state.pop("sessao_supabase", None)
+        limpar_sessao(configuracao, cookies)
         usuario = None
 
     if not usuario:
@@ -280,7 +322,7 @@ def main():
             )
         except requests.RequestException:
             pass
-        st.session_state.pop("sessao_supabase", None)
+        limpar_sessao(configuracao, cookies)
         st.rerun()
 
     st.title("🎁 Amigo Secreto Online")
