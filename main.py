@@ -136,7 +136,7 @@ def validar_sessao(configuracao, cookies):
     return usuario
 
 
-def confirmar_link(configuracao):
+def confirmar_link(configuracao, cookies):
     token_hash = st.query_params.get("token_hash")
     tipo = st.query_params.get("type")
     if not token_hash or tipo not in {"invite", "email", "magiclink"}:
@@ -164,8 +164,8 @@ def confirmar_link(configuracao):
     return True
 
 
-def tela_entrada(configuracao):
-    if confirmar_link(configuracao):
+def tela_entrada(configuracao, cookies):
+    if confirmar_link(configuracao, cookies):
         return
 
     st.title("🎁 Amigo Secreto Online")
@@ -312,7 +312,7 @@ def main():
         usuario = None
 
     if not usuario:
-        tela_entrada(configuracao)
+        tela_entrada(configuracao, cookies)
         st.stop()
 
     if st.button("Sair"):
