@@ -1,6 +1,7 @@
 import datetime
 import hmac
 from collections import Counter
+from urllib.parse import urlencode
 
 import requests
 import streamlit as st
@@ -101,11 +102,11 @@ def validar_sessao(configuracao):
 def confirmar_link(configuracao):
     token_hash = st.query_params.get("token_hash")
     tipo = st.query_params.get("type")
-    if not token_hash or tipo not in {"invite", "email"}:
+    if not token_hash or tipo not in {"invite", "email", "magiclink"}:
         return False
 
     st.subheader("Confirmar acesso ao Amigo Secreto")
-    st.write("Confirme para ativar o link recebido no seu e-mail.")
+    st.write("Confirme para ativar o link individual compartilhado pelo organizador.")
     if st.button("Confirmar e entrar"):
         try:
             sessao = requisicao_supabase(
@@ -119,7 +120,7 @@ def confirmar_link(configuracao):
             st.query_params.clear()
             st.rerun()
         except requests.RequestException:
-            st.error("Este link expirou ou já foi usado. Solicite um novo link ao organizador.")
+            st.error("Este link expirou ou já foi usado. Peça outro link ao organizador.")
     return True
 
 
@@ -128,55 +129,50 @@ def tela_entrada(configuracao):
         return
 
     st.title("🎁 Amigo Secreto Online")
-    st.subheader("Entrar com convite")
-    with st.form("formulario_login"):
-        email = st.text_input("E-mail convidado").strip().lower()
-        enviar_link = st.form_submit_button("Enviar link de acesso")
-
-    if enviar_link:
-        if not email:
-            st.warning("Informe o e-mail que recebeu o convite.")
-        else:
-            try:
-                requisicao_supabase(
-                    configuracao,
-                    "/auth/v1/otp",
-                    metodo="POST",
-                    token=configuracao["anon_key"],
-                    params={"redirect_to": configuracao["app_url"]},
-                    dados={"email": email, "create_user": False},
-                )
-            except requests.RequestException:
-                pass
-            st.success("Se esse e-mail tiver convite válido, enviaremos um link de acesso.")
+    st.subheader("Acessar com link individual")
+    st.write("Peça ao organizador um link para o e-mail que foi convidado.")
 
     with st.expander("Área do organizador: convidar participante"):
         with st.form("formulario_convite"):
             senha = st.text_input("Senha do organizador", type="password")
             email_convidado = st.text_input("E-mail do participante").strip().lower()
-            enviar_convite = st.form_submit_button("Enviar convite")
+            tipo_link = st.selectbox(
+                "Tipo de link",
+                options=["Convite inicial", "Novo link de acesso"],
+            )
+            gerar_convite = st.form_submit_button("Gerar link")
 
-        if enviar_convite:
+        if gerar_convite:
             if not hmac.compare_digest(senha, configuracao["senha_organizador"]):
                 st.error("Senha do organizador incorreta.")
             elif not email_convidado:
                 st.warning("Informe o e-mail do participante.")
             else:
                 try:
-                    requisicao_supabase(
+                    tipo_autenticacao = "invite" if tipo_link == "Convite inicial" else "magiclink"
+                    resultado = requisicao_supabase(
                         configuracao,
-                        "/auth/v1/invite",
+                        "/auth/v1/admin/generate_link",
                         metodo="POST",
                         admin=True,
-                        params={"redirect_to": configuracao["app_url"]},
-                        dados={"email": email_convidado},
+                        dados={"type": tipo_autenticacao, "email": email_convidado},
                     )
-                    st.success("Convite enviado. A pessoa deve abrir o link e confirmar o acesso.")
+                    propriedades = resultado.get("properties", resultado)
+                    token_hash = propriedades.get("hashed_token")
+                    tipo_verificacao = propriedades.get("verification_type", tipo_autenticacao)
+                    if not token_hash:
+                        st.error("O Supabase não retornou o token do link. Confira as configurações do projeto.")
+                    else:
+                        query = urlencode({"token_hash": token_hash, "type": tipo_verificacao})
+                        link_individual = f"{configuracao['app_url']}/?{query}"
+                        st.success("Link gerado. Compartilhe-o somente com a pessoa deste e-mail.")
+                        st.code(link_individual, language=None)
+                        st.warning("O link é individual, secreto e pode ser usado uma única vez.")
                 except requests.HTTPError as erro:
                     if erro.response is not None and erro.response.status_code == 422:
-                        st.error("Não foi possível convidar esse e-mail. Talvez já tenha uma conta ou convite.")
+                        st.error("Não foi possível gerar o link. Se a conta já existe, escolha Novo link de acesso.")
                     else:
-                        st.error("Falha ao enviar convite. Confira o SMTP e as configurações do Supabase.")
+                        st.error("Falha ao gerar link. Confira a chave administrativa do Supabase.")
                 except requests.RequestException:
                     st.error("Não foi possível conectar ao serviço de autenticação.")
 
