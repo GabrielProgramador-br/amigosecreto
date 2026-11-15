@@ -2,6 +2,7 @@ import datetime
 import hmac
 import secrets
 from collections import Counter
+from html import escape
 from urllib.parse import urlencode
 
 import requests
@@ -56,7 +57,7 @@ st.markdown("""
         position: relative;
         overflow: hidden;
         margin: 0.25rem 0 1.5rem;
-        padding: 2.35rem 2.5rem 2.15rem;
+        padding: 3.25rem 2.5rem 2.15rem;
         border: 1px solid rgba(231, 189, 114, 0.65);
         border-bottom: 4px solid var(--gold);
         border-radius: 24px;
@@ -98,7 +99,7 @@ st.markdown("""
     .holiday-hero .hero-subtitle {
         position: relative;
         z-index: 1;
-        max-width: 34rem;
+        max-width: 28rem;
         margin: 0.8rem 0 0;
         color: rgba(255, 255, 255, 0.83);
         font-size: 1rem;
@@ -125,6 +126,10 @@ st.markdown("""
     [data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
         color: #fff;
         background: var(--pine);
+    }
+    [data-testid="stTabs"] button[data-baseweb="tab"] p,
+    .stButton > button p, [data-testid="stFormSubmitButton"] > button p {
+        color: inherit;
     }
     [data-testid="stTabs"] [data-baseweb="tab-highlight"] {
         background-color: var(--gold);
@@ -172,14 +177,164 @@ st.markdown("""
     [data-testid="stAlert"] { border-radius: 12px; }
     hr { border-color: #e5e5dc; }
 
+    .hero-lights {
+        position: absolute;
+        inset: 0 0 auto;
+        height: 22px;
+        border-top: 2px solid rgba(255, 255, 255, 0.25);
+        background:
+            radial-gradient(ellipse at 50% 4px, #f6cf87 0 4px, transparent 5px)
+            0 0 / 42px 22px repeat-x;
+        filter: drop-shadow(0 2px 5px rgba(246, 207, 135, 0.55));
+    }
+    .hero-art {
+        position: absolute;
+        right: 1.5rem;
+        bottom: 1.25rem;
+        width: 140px;
+        height: 145px;
+        opacity: 0.9;
+    }
+    .hero-tag {
+        display: inline-flex;
+        margin-top: 1.2rem;
+        padding: 0.4rem 0.8rem;
+        border: 1px solid rgba(242, 216, 158, 0.4);
+        border-radius: 30px;
+        color: #f2d89e;
+        font-size: 0.78rem;
+        letter-spacing: 0.03em;
+    }
+    [data-testid="stForm"] {
+        padding: 1.5rem;
+        border: 1px solid #e2e6dd;
+        border-radius: 20px;
+        background: var(--surface);
+        box-shadow: 0 8px 24px rgba(20, 58, 39, 0.04);
+    }
+    [data-testid="stFormSubmitButton"] > button { width: 100%; }
+    .stButton > button:focus-visible,
+    [data-testid="stFormSubmitButton"] > button:focus-visible {
+        outline: 3px solid var(--gold);
+        outline-offset: 3px;
+    }
+    .celebration-steps, .celebration-summary, .participant-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.8rem;
+        margin: 0.2rem 0 1.25rem;
+    }
+    .step-card, .summary-card, .participant-card {
+        padding: 1.1rem;
+        border: 1px solid #e3e6dc;
+        border-radius: 16px;
+        background: var(--surface);
+    }
+    .step-card strong, .summary-card strong {
+        display: block;
+        margin: 0.35rem 0;
+        color: var(--pine);
+    }
+    .step-card span, .summary-card span, .participant-card p {
+        color: #52655a;
+        font-size: 0.85rem;
+        line-height: 1.55;
+    }
+    .summary-card strong { font-size: 1.65rem; }
+    .summary-card { border-top: 3px solid var(--gold); }
+    .participant-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .participant-card { display: flex; gap: 0.8rem; align-items: flex-start; }
+    .participant-avatar {
+        display: grid;
+        flex: 0 0 42px;
+        height: 42px;
+        place-items: center;
+        border-radius: 13px;
+        background: #edf3e9;
+        color: var(--pine);
+        font-weight: 700;
+    }
+    .participant-details { min-width: 0; }
+    .participant-card h4 {
+        margin: 0 0 0.35rem;
+        color: var(--pine);
+        font-size: 1rem;
+    }
+    .participant-card p { margin: 0; white-space: pre-wrap; }
+    .participant-card h4, .participant-card p { overflow-wrap: anywhere; }
+    .rank-card {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin: 0 0 0.75rem;
+        padding: 1.15rem;
+        border: 1px solid #e3e6dc;
+        border-radius: 16px;
+        background: var(--surface);
+    }
+    .rank-card.leader {
+        border-color: #dbc18a;
+        background: linear-gradient(115deg, #fff9eb, #fffdf7);
+    }
+    .rank-position { min-width: 2.4rem; font-size: 1.4rem; color: var(--pine); }
+    .rank-details { flex: 1; min-width: 0; }
+    .rank-details strong { color: var(--pine); overflow-wrap: anywhere; }
+    .rank-label {
+        display: block;
+        margin-bottom: 0.3rem;
+        color: #715522;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    .vote-badge {
+        flex-shrink: 0;
+        padding: 0.4rem 0.65rem;
+        border-radius: 30px;
+        background: #edf3e9;
+        color: var(--pine);
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+    .suggestion-chip {
+        display: inline-block;
+        margin: 0 0.5rem 0.6rem 0;
+        padding: 0.6rem 0.85rem;
+        border: 1px solid #dee7da;
+        border-radius: 12px;
+        background: #f0f5ec;
+        color: var(--pine);
+        font-size: 0.9rem;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .stButton > button, [data-testid="stFormSubmitButton"] > button {
+            transition: none;
+        }
+        .stButton > button:hover, [data-testid="stFormSubmitButton"] > button:hover {
+            transform: none;
+        }
+    }
     @media (max-width: 640px) {
         [data-testid="stMainBlockContainer"] {
             padding: 1rem 1rem 3rem;
         }
         .holiday-hero {
-            padding: 1.8rem 1.4rem;
+            padding: 2.5rem 1.4rem 1.8rem;
             border-radius: 19px;
         }
+        .hero-art { display: none; }
+        .celebration-steps { grid-template-columns: 1fr; gap: 0.5rem; }
+        .step-card { padding: 0.8rem 1rem; }
+        .step-card strong { display: inline; margin-left: 0.4rem; }
+        .step-card span { display: block; margin-top: 0.3rem; }
+        .celebration-summary { gap: 0.4rem; }
+        .summary-card { padding: 0.75rem 0.6rem; }
+        .summary-card strong { font-size: 1.3rem; }
+        .summary-card span { font-size: 0.75rem; }
+        .participant-grid { grid-template-columns: 1fr; }
+        .rank-card { flex-wrap: wrap; gap: 0.65rem; }
+        [data-testid="stForm"] { padding: 1rem; }
         [data-testid="stTabs"] [data-baseweb="tab-list"] { gap: 0.1rem; }
         [data-testid="stTabs"] button[data-baseweb="tab"] {
             padding: 0.45rem 0.55rem;
@@ -193,14 +348,64 @@ st.markdown("""
 def render_hero():
     st.markdown("""
         <section class="holiday-hero">
-            <p class="hero-kicker">✦ Um encontro especial ✦</p>
+            <div class="hero-lights" aria-hidden="true"></div>
+            <p class="hero-kicker">✦ Especial de Natal ✦</p>
             <h1>Amigo Secreto</h1>
             <p class="hero-subtitle">
                 Presentes, boas conversas e momentos para guardar.
                 Vamos preparar nossa celebração?
             </p>
+            <span class="hero-tag">Feito para celebrar juntos</span>
+            <svg class="hero-art" viewBox="0 0 140 145" aria-hidden="true">
+                <path d="M91 6l5 11 12 1-9 8 3 12-11-6-11 6 3-12-9-8 12-1z"
+                      fill="#e7bd72"/>
+                <path d="M91 29L60 70h16L48 105h86l-28-35h16z" fill="#79a886"/>
+                <path d="M91 46L72 72h11L64 96h54l-19-24h11z" fill="#a4c29b"/>
+                <path d="M87 105h9v18h-9z" fill="#e7bd72"/>
+                <rect x="8" y="91" width="49" height="42" rx="5" fill="#c85b57"/>
+                <rect x="4" y="86" width="57" height="12" rx="3" fill="#df7970"/>
+                <path d="M29 86h8v47h-8z" fill="#f1d298"/>
+                <path d="M33 86C6 84 16 62 33 80c17-18 27 4 0 6z"
+                      fill="none" stroke="#f1d298" stroke-width="5"/>
+                <circle cx="91" cy="64" r="4" fill="#f1d298"/>
+                <circle cx="78" cy="87" r="4" fill="#c85b57"/>
+                <circle cx="105" cy="88" r="4" fill="#f1d298"/>
+            </svg>
         </section>
     """, unsafe_allow_html=True)
+
+
+def render_participantes(participantes):
+    if not participantes:
+        st.info("Nossa lista de presentes ainda está começando. Os participantes aparecerão aqui.")
+        return
+    cards = []
+    for participante in participantes:
+        nome = escape(participante["nome"])
+        inicial = escape(participante["nome"].strip()[:1].upper())
+        endereco = escape(participante["endereco"] or "Endereço ainda não informado")
+        cards.append(
+            f'<article class="participant-card"><span class="participant-avatar" aria-hidden="true">'
+            f'{inicial}</span><div class="participant-details"><h4>{nome}</h4>'
+            f'<p>{endereco}</p></div></article>'
+        )
+    st.markdown('<div class="participant-grid">' + "".join(cards) + '</div>',
+                unsafe_allow_html=True)
+
+
+def render_ranking(ranking):
+    for posicao, item in enumerate(ranking):
+        votos = item["votos"]
+        texto_votos = "voto" if votos == 1 else "votos"
+        medalha = ["🥇", "🥈", "🥉"][posicao] if posicao < 3 else f"{posicao + 1}º"
+        classe = "rank-card leader" if posicao == 0 else "rank-card"
+        destaque = '<span class="rank-label">No topo das sugestões</span>' if posicao == 0 else ""
+        st.markdown(
+            f'<article class="{classe}"><span class="rank-position">{medalha}</span>'
+            f'<div class="rank-details">{destaque}<strong>{escape(item["data_hora"])}</strong></div>'
+            f'<span class="vote-badge">{votos} {texto_votos}</span></article>',
+            unsafe_allow_html=True,
+        )
 
 
 def carregar_configuracao():
@@ -343,6 +548,16 @@ def tela_entrada(configuracao, cookies):
         return
 
     render_hero()
+    st.markdown("""
+        <div class="celebration-steps">
+            <div class="step-card">🎁 <strong>Seu convite</strong>
+                <span>Receba seu acesso individual com o gerente.</span></div>
+            <div class="step-card">📍 <strong>Seu cadastro</strong>
+                <span>Conte para o grupo onde entregar seu presente.</span></div>
+            <div class="step-card">📅 <strong>Nosso encontro</strong>
+                <span>Sugira os melhores dias para celebrar.</span></div>
+        </div>
+    """, unsafe_allow_html=True)
     st.subheader("Entrar na celebração")
     st.write("Use o e-mail e a senha definidos ao aceitar seu convite.")
     with st.form("formulario_login"):
@@ -778,6 +993,19 @@ def main():
         st.error("Não foi possível carregar os dados. Confira as políticas do banco no Supabase.")
         st.stop()
 
+    cadastro_completo = bool(perfil and perfil["nome"].strip() and perfil["endereco"].strip())
+    status_cadastro = "Completo" if cadastro_completo else "Pendente"
+    st.markdown(
+        '<div class="celebration-summary">'
+        f'<div class="summary-card"><span>🎁 Nosso grupo</span><strong>{len(participantes)}</strong>'
+        '<span>participantes cadastrados</span></div>'
+        f'<div class="summary-card"><span>📍 Seu cadastro</span><strong>{status_cadastro}</strong>'
+        '<span>dados para entrega</span></div>'
+        f'<div class="summary-card"><span>📅 Suas datas</span><strong>{len(sugestoes)}/10</strong>'
+        '<span>sugestões enviadas</span></div></div>',
+        unsafe_allow_html=True,
+    )
+
     aba_cadastro, aba_sugestoes, aba_ranking = st.tabs(
         ["1️⃣ Cadastro", "2️⃣ Sugerir Datas", "3️⃣ Melhores Dias"]
     )
@@ -785,6 +1013,8 @@ def main():
     with aba_cadastro:
         st.subheader("📍 Seu cadastro")
         st.write("Este é o cadastro associado ao seu e-mail.")
+        if not cadastro_completo:
+            st.info("Falta pouco! Preencha seu endereço para facilitar a entrega do seu presente.")
         with st.form("formulario_perfil"):
             nome = st.text_input("Seu Nome", value=perfil["nome"] if perfil else "")
             endereco = st.text_area(
@@ -814,9 +1044,7 @@ def main():
 
         st.write("---")
         st.write(f"**Participantes e endereços ({len(participantes)}):**")
-        for participante in participantes:
-            st.write(f"👤 **{participante['nome']}**")
-            st.text(participante["endereco"])
+        render_participantes(participantes)
 
     with aba_sugestoes:
         st.subheader("📅 Sugerir Datas para a Confra")
@@ -860,8 +1088,13 @@ def main():
 
             if sugestoes:
                 st.write(f"**Suas sugestões ({len(sugestoes)}/10):**")
-                for sugestao in sugestoes:
-                    st.write(f"- 🕒 {sugestao['data_hora']}")
+                st.markdown(
+                    "".join(
+                        f'<span class="suggestion-chip">🕒 {escape(sugestao["data_hora"])}</span>'
+                        for sugestao in sugestoes
+                    ),
+                    unsafe_allow_html=True,
+                )
 
     with aba_ranking:
         st.subheader("🏆 Melhores Dias para a Confra")
@@ -869,18 +1102,7 @@ def main():
             st.info("Ainda não temos datas sugeridas.")
         else:
             st.write("Estes são os dias e horários com mais votos:")
-            for posicao, item in enumerate(ranking):
-                data_hora = item["data_hora"]
-                votos = item["votos"]
-                texto_votos = "voto" if votos == 1 else "votos"
-                if posicao == 0:
-                    st.success(f"🥇 **{data_hora}** — {votos} {texto_votos}")
-                elif posicao == 1:
-                    st.warning(f"🥈 **{data_hora}** — {votos} {texto_votos}")
-                elif posicao == 2:
-                    st.info(f"🥉 **{data_hora}** — {votos} {texto_votos}")
-                else:
-                    st.write(f"**{posicao + 1}º lugar:** {data_hora} — {votos} {texto_votos}")
+            render_ranking(ranking)
 
 
 if __name__ == "__main__":

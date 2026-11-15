@@ -2,6 +2,10 @@
 
 O app usa Supabase Auth para entrar com e-mail e senha. O gerente administra participantes em `/config`, onde cadastra cada pessoa com nome e e-mail, edita nomes, remove pessoas e gera links para definir ou redefinir senhas. Cada participante informa o proprio endereco no cadastro da conta. Os links sao exibidos no app para compartilhamento manual; nenhum e-mail e enviado automaticamente. A sessao fica persistida no navegador por ate 30 dias ou ate a pessoa sair. Todos os participantes autenticados podem ver os nomes e enderecos uns dos outros; visitantes sem conta nao podem acessar esses dados.
 
+## Visual natalino
+
+A interface tem luzes decorativas e ilustracao natalina, cards de participantes, indicadores de cadastro e sugestoes, e ranking com destaque para a data mais votada. O layout se adapta a telas menores e respeita a preferencia por movimento reduzido. Os indicadores mostram os dados atuais do grupo; nao alteram as regras de participacao.
+
 ## Configurar o banco
 
 1. Crie um projeto no Supabase.
