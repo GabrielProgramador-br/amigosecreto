@@ -1,5 +1,6 @@
 import datetime
 import hmac
+import secrets
 from collections import Counter
 from urllib.parse import urlencode
 
@@ -257,6 +258,7 @@ def salvar_refresh_token(configuracao, cookies, sessao):
 
 def limpar_sessao(configuracao, cookies):
     st.session_state.pop("sessao_supabase", None)
+    st.session_state.pop("gerente_autenticado", None)
     if cookies.get(COOKIE_SESSAO) is not None:
         cookies.remove(
             COOKIE_SESSAO,
@@ -308,12 +310,12 @@ def validar_sessao(configuracao, cookies):
 def confirmar_link(configuracao, cookies):
     token_hash = st.query_params.get("token_hash")
     tipo = st.query_params.get("type")
-    if not token_hash or tipo not in {"invite", "email", "magiclink"}:
+    if not token_hash or tipo not in {"invite", "email", "magiclink", "recovery"}:
         return False
 
     render_hero()
-    st.subheader("Confirmar seu convite")
-    st.write("Confirme para ativar seu link individual e participar da celebração.")
+    st.subheader("Confirmar seu acesso")
+    st.write("Confirme para ativar o link individual compartilhado pelo gerente.")
     if st.button("Confirmar e entrar"):
         try:
             sessao = requisicao_supabase(
@@ -325,6 +327,8 @@ def confirmar_link(configuracao, cookies):
             )
             st.session_state.sessao_supabase = sessao
             salvar_refresh_token(configuracao, cookies, sessao)
+            if tipo in {"invite", "recovery"}:
+                st.session_state["exigir_nova_senha"] = True
             st.query_params.clear()
             st.rerun()
         except requests.RequestException:
@@ -339,52 +343,313 @@ def tela_entrada(configuracao, cookies):
         return
 
     render_hero()
-    st.subheader("Acessar com link individual")
-    st.write("Peça ao organizador um link individual para entrar na nossa celebração.")
+    st.subheader("Entrar na celebração")
+    st.write("Use o e-mail e a senha definidos ao aceitar seu convite.")
+    with st.form("formulario_login"):
+        email = st.text_input("E-mail").strip().lower()
+        senha = st.text_input("Senha", type="password")
+        entrar = st.form_submit_button("Entrar")
 
-    with st.expander("🎄 Área do organizador · convidar participante"):
-        with st.form("formulario_convite"):
-            senha = st.text_input("Senha do organizador", type="password")
-            email_convidado = st.text_input("E-mail do participante").strip().lower()
-            tipo_link = st.selectbox(
-                "Tipo de link",
-                options=["Convite inicial", "Novo link de acesso"],
-            )
-            gerar_convite = st.form_submit_button("Gerar link")
+    if entrar:
+        if not email or not senha:
+            st.warning("Informe seu e-mail e sua senha.")
+        else:
+            try:
+                sessao = requisicao_supabase(
+                    configuracao,
+                    "/auth/v1/token",
+                    metodo="POST",
+                    token=configuracao["anon_key"],
+                    params={"grant_type": "password"},
+                    dados={"email": email, "password": senha},
+                )
+                st.session_state.sessao_supabase = sessao
+                salvar_refresh_token(configuracao, cookies, sessao)
+                st.rerun()
+            except requests.HTTPError as erro:
+                if erro.response is not None and erro.response.status_code in {400, 401}:
+                    st.error("E-mail ou senha inválidos.")
+                else:
+                    st.error("Não foi possível entrar. Tente novamente.")
+            except requests.RequestException:
+                st.error("Não foi possível conectar ao serviço de autenticação.")
 
-        if gerar_convite:
-            if not hmac.compare_digest(senha, configuracao["senha_organizador"]):
-                st.error("Senha do organizador incorreta.")
-            elif not email_convidado:
-                st.warning("Informe o e-mail do participante.")
+    st.caption("Ainda não tem senha ou precisa redefini-la? Peça um link ao gerente.")
+    st.page_link(pagina_configuracao, label="Acesso do gerente", icon="⚙️")
+
+
+def gerar_link_senha(configuracao, email):
+    resultado = requisicao_supabase(
+        configuracao,
+        "/auth/v1/admin/generate_link",
+        metodo="POST",
+        admin=True,
+        dados={"type": "recovery", "email": email},
+    )
+    propriedades = resultado.get("properties", resultado)
+    token_hash = propriedades.get("hashed_token")
+    tipo_verificacao = propriedades.get("verification_type", "recovery")
+    if not token_hash:
+        raise ValueError("O Supabase não retornou o token do link de redefinição.")
+
+    query = urlencode({"token_hash": token_hash, "type": tipo_verificacao})
+    return f"{configuracao['app_url']}/?{query}"
+
+
+def localizar_usuario_supabase(configuracao, email):
+    pagina = 1
+    while True:
+        resultado = requisicao_supabase(
+            configuracao,
+            "/auth/v1/admin/users",
+            admin=True,
+            params={"page": pagina, "per_page": 1000},
+        )
+        usuarios = resultado.get("users")
+        if not isinstance(usuarios, list):
+            raise ValueError("O Supabase retornou uma lista de usuários inválida.")
+        for usuario in usuarios:
+            if (usuario.get("email") or "").lower() == email.lower():
+                return usuario.get("id")
+        if len(usuarios) < 1000:
+            return None
+        pagina += 1
+
+
+def tela_definir_senha(configuracao):
+    render_hero()
+    st.subheader("Defina sua senha")
+    st.write("Crie uma senha para entrar nas próximas vezes com seu e-mail.")
+    with st.form("formulario_definir_senha"):
+        senha = st.text_input("Nova senha", type="password")
+        confirmar_senha = st.text_input("Confirme a nova senha", type="password")
+        salvar = st.form_submit_button("Salvar senha")
+
+    if salvar:
+        if not senha:
+            st.warning("Informe uma senha.")
+        elif senha != confirmar_senha:
+            st.error("As senhas não conferem.")
+        else:
+            try:
+                requisicao_supabase(
+                    configuracao,
+                    "/auth/v1/user",
+                    metodo="PUT",
+                    token=st.session_state.sessao_supabase["access_token"],
+                    dados={"password": senha},
+                )
+                st.session_state.pop("exigir_nova_senha", None)
+                st.session_state["senha_atualizada"] = True
+                st.rerun()
+            except requests.RequestException:
+                st.error("Não foi possível salvar a senha. Confira os requisitos e tente novamente.")
+
+
+def tela_configuracao():
+    configuracao = carregar_configuracao()
+    if configuracao is None:
+        st.error(
+            "Configure SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, "
+            "INVITE_ADMIN_PASSWORD e APP_URL nos Secrets do Streamlit."
+        )
+        st.stop()
+
+    render_hero()
+    st.subheader("⚙️ Gerenciamento do gerente")
+    if not st.session_state.get("gerente_autenticado"):
+        with st.form("formulario_login_gerente"):
+            senha = st.text_input("Senha do gerente", type="password")
+            entrar = st.form_submit_button("Acessar gerenciamento")
+        if entrar:
+            if hmac.compare_digest(senha, configuracao["senha_organizador"]):
+                st.session_state["gerente_autenticado"] = True
+                st.rerun()
+            st.error("Senha do gerente incorreta.")
+        st.caption("Esta área é restrita ao gerente do grupo.")
+        return
+
+    if st.button("Sair do gerenciamento"):
+        st.session_state.pop("gerente_autenticado", None)
+        st.rerun()
+
+    st.write("Cadastre participantes, atualize seus dados e gere links individuais de senha.")
+    with st.expander("➕ Cadastrar participante", expanded=True):
+        with st.form("formulario_novo_participante"):
+            novo_nome = st.text_input("Nome do participante")
+            novo_email = st.text_input("E-mail do participante").strip().lower()
+            novo_endereco = st.text_area("Endereço para entrega")
+            cadastrar = st.form_submit_button("Cadastrar e gerar link de senha")
+
+        if cadastrar:
+            if not novo_nome.strip() or not novo_email or not novo_endereco.strip():
+                st.warning("Preencha nome, e-mail e endereço.")
             else:
+                usuario_criado = None
                 try:
-                    tipo_autenticacao = "invite" if tipo_link == "Convite inicial" else "magiclink"
-                    resultado = requisicao_supabase(
+                    usuario_criado = requisicao_supabase(
                         configuracao,
-                        "/auth/v1/admin/generate_link",
+                        "/auth/v1/admin/users",
                         metodo="POST",
                         admin=True,
-                        dados={"type": tipo_autenticacao, "email": email_convidado},
+                        dados={
+                            "email": novo_email,
+                            "password": secrets.token_urlsafe(32),
+                            "email_confirm": True,
+                        },
                     )
-                    propriedades = resultado.get("properties", resultado)
-                    token_hash = propriedades.get("hashed_token")
-                    tipo_verificacao = propriedades.get("verification_type", tipo_autenticacao)
-                    if not token_hash:
-                        st.error("O Supabase não retornou o token do link. Confira as configurações do projeto.")
-                    else:
-                        query = urlencode({"token_hash": token_hash, "type": tipo_verificacao})
-                        link_individual = f"{configuracao['app_url']}/?{query}"
-                        st.success("Link gerado. Compartilhe-o somente com a pessoa deste e-mail.")
-                        st.code(link_individual, language=None)
-                        st.warning("O link é individual, secreto e pode ser usado uma única vez.")
+                    requisicao_supabase(
+                        configuracao,
+                        "/rest/v1/participantes",
+                        metodo="POST",
+                        admin=True,
+                        dados={
+                            "email": novo_email,
+                            "auth_user_id": usuario_criado["id"],
+                            "nome": novo_nome.strip(),
+                            "endereco": novo_endereco.strip(),
+                        },
+                        preferencias="return=minimal",
+                    )
+                    link = gerar_link_senha(configuracao, novo_email)
+                    st.success("Participante cadastrado. Compartilhe o link somente com essa pessoa.")
+                    st.code(link, language=None)
+                    st.warning("O link é individual, secreto e pode ser usado uma única vez.")
                 except requests.HTTPError as erro:
+                    if usuario_criado and usuario_criado.get("id"):
+                        try:
+                            requisicao_supabase(
+                                configuracao,
+                                f"/auth/v1/admin/users/{usuario_criado['id']}",
+                                metodo="DELETE",
+                                admin=True,
+                            )
+                        except requests.RequestException:
+                            st.error(
+                                "O cadastro falhou e a conta criada não pôde ser removida automaticamente. "
+                                "Verifique a conta no Supabase antes de tentar novamente."
+                            )
+                            st.stop()
                     if erro.response is not None and erro.response.status_code == 422:
-                        st.error("Não foi possível gerar o link. Se a conta já existe, escolha Novo link de acesso.")
+                        st.error("Esse e-mail já possui uma conta. Use a lista abaixo para gerar um link de senha.")
                     else:
-                        st.error("Falha ao gerar link. Confira a chave administrativa do Supabase.")
-                except requests.RequestException:
-                    st.error("Não foi possível conectar ao serviço de autenticação.")
+                        st.error("Não foi possível cadastrar o participante no Supabase.")
+                except (requests.RequestException, KeyError, ValueError):
+                    if usuario_criado and usuario_criado.get("id"):
+                        try:
+                            requisicao_supabase(
+                                configuracao,
+                                f"/auth/v1/admin/users/{usuario_criado['id']}",
+                                metodo="DELETE",
+                                admin=True,
+                            )
+                        except requests.RequestException:
+                            st.error(
+                                "O cadastro falhou e a conta criada não pôde ser removida automaticamente. "
+                                "Verifique a conta no Supabase antes de tentar novamente."
+                            )
+                            st.stop()
+                    st.error(
+                        "A conta não foi cadastrada por completo. Confira a configuração do Supabase e tente novamente."
+                    )
+
+    try:
+        participantes = requisicao_supabase(
+            configuracao,
+            "/rest/v1/participantes",
+            admin=True,
+            params={"select": "email,auth_user_id,nome,endereco", "order": "nome.asc"},
+        )
+    except requests.RequestException:
+        st.error("Não foi possível carregar os participantes.")
+        st.stop()
+
+    st.subheader(f"Participantes cadastrados · {len(participantes)}")
+    if not participantes:
+        st.info("Ainda não há participantes cadastrados.")
+        return
+
+    email_remocao_pendente = st.session_state.get("email_remocao_pendente")
+    if email_remocao_pendente:
+        st.warning(
+            f"Remover {email_remocao_pendente}? A conta, o cadastro e as sugestões associadas serão excluídos."
+        )
+        confirmar_col, cancelar_col = st.columns(2)
+        with confirmar_col:
+            if st.button("Confirmar remoção", type="primary"):
+                participante = next(
+                    (p for p in participantes if p["email"] == email_remocao_pendente),
+                    None,
+                )
+                if participante:
+                    try:
+                        auth_user_id = participante["auth_user_id"] or localizar_usuario_supabase(
+                            configuracao, participante["email"]
+                        )
+                        if auth_user_id:
+                            requisicao_supabase(
+                                configuracao,
+                                f"/auth/v1/admin/users/{auth_user_id}",
+                                metodo="DELETE",
+                                admin=True,
+                            )
+                        else:
+                            requisicao_supabase(
+                                configuracao,
+                                "/rest/v1/participantes",
+                                metodo="DELETE",
+                                admin=True,
+                                params={"email": f"eq.{email_remocao_pendente}"},
+                            )
+                        st.session_state.pop("email_remocao_pendente", None)
+                        st.success("Participante removido.")
+                        st.rerun()
+                    except (requests.RequestException, ValueError):
+                        st.error("Não foi possível remover o participante.")
+        with cancelar_col:
+            if st.button("Cancelar remoção"):
+                st.session_state.pop("email_remocao_pendente", None)
+                st.rerun()
+
+    for indice, participante in enumerate(participantes):
+        email = participante["email"]
+        with st.expander(f"🎁 {participante['nome']} · {email}"):
+            with st.form(f"formulario_editar_{indice}"):
+                st.text_input("E-mail (não editável)", value=email, disabled=True)
+                nome = st.text_input("Nome", value=participante["nome"])
+                endereco = st.text_area("Endereço", value=participante["endereco"])
+                salvar = st.form_submit_button("Salvar alterações")
+            if salvar:
+                if not nome.strip() or not endereco.strip():
+                    st.warning("Nome e endereço são obrigatórios.")
+                else:
+                    try:
+                        requisicao_supabase(
+                            configuracao,
+                            "/rest/v1/participantes",
+                            metodo="PATCH",
+                            admin=True,
+                            params={"email": f"eq.{email}"},
+                            dados={"nome": nome.strip(), "endereco": endereco.strip()},
+                            preferencias="return=minimal",
+                        )
+                        st.success("Dados atualizados.")
+                        st.rerun()
+                    except requests.RequestException:
+                        st.error("Não foi possível atualizar o participante.")
+
+            if st.button("Gerar link para definir/redefinir senha", key=f"senha_{indice}"):
+                try:
+                    link = gerar_link_senha(configuracao, email)
+                    st.success("Link gerado. Compartilhe-o somente com o dono deste e-mail.")
+                    st.code(link, language=None)
+                    st.warning("O link é individual, secreto e pode ser usado uma única vez.")
+                except (requests.RequestException, ValueError):
+                    st.error("Não foi possível gerar o link de senha.")
+
+            if st.button("Remover participante", key=f"remover_{indice}"):
+                st.session_state["email_remocao_pendente"] = email
+                st.rerun()
 
 
 def requisicao_do_usuario(configuracao, usuario, caminho, metodo="GET", dados=None,
@@ -485,6 +750,13 @@ def main():
         tela_entrada(configuracao, cookies)
         st.stop()
 
+    if st.session_state.get("exigir_nova_senha"):
+        tela_definir_senha(configuracao)
+        st.stop()
+
+    if st.session_state.pop("senha_atualizada", False):
+        st.success("Senha definida. Você já pode acessar sua conta com e-mail e senha.")
+
     if st.button("Sair"):
         try:
             requisicao_do_usuario(
@@ -510,7 +782,7 @@ def main():
 
     with aba_cadastro:
         st.subheader("📍 Seu cadastro")
-        st.write("Seu e-mail foi confirmado pelo link de convite.")
+        st.write("Este é o cadastro associado ao seu e-mail.")
         with st.form("formulario_perfil"):
             nome = st.text_input("Seu Nome", value=perfil["nome"] if perfil else "")
             endereco = st.text_area(
@@ -609,4 +881,17 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    pagina_configuracao = st.Page(
+        tela_configuracao,
+        title="Gerenciamento",
+        icon="⚙️",
+        url_path="config",
+    )
+    pagina = st.navigation(
+        [
+            st.Page(main, title="Amigo Secreto", icon="🎁", default=True),
+            pagina_configuracao,
+        ],
+        position="hidden",
+    )
+    pagina.run()
