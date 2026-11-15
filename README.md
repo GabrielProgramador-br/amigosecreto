@@ -1,6 +1,6 @@
 # Amigo Secreto Online
 
-O app usa Supabase Auth para entrar com e-mail e senha. O gerente administra participantes em `/config`, onde pode cadastrar, editar e remover pessoas e gerar links para definir ou redefinir senhas. Os links sao exibidos no app para compartilhamento manual; nenhum e-mail e enviado automaticamente. A sessao fica persistida no navegador por ate 30 dias ou ate a pessoa sair. Todos os participantes autenticados podem ver os nomes e enderecos uns dos outros; visitantes sem conta nao podem acessar esses dados.
+O app usa Supabase Auth para entrar com e-mail e senha. O gerente administra participantes em `/config`, onde cadastra cada pessoa com nome e e-mail, edita nomes, remove pessoas e gera links para definir ou redefinir senhas. Cada participante informa o proprio endereco no cadastro da conta. Os links sao exibidos no app para compartilhamento manual; nenhum e-mail e enviado automaticamente. A sessao fica persistida no navegador por ate 30 dias ou ate a pessoa sair. Todos os participantes autenticados podem ver os nomes e enderecos uns dos outros; visitantes sem conta nao podem acessar esses dados.
 
 ## Configurar o banco
 
@@ -23,7 +23,7 @@ INVITE_ADMIN_PASSWORD = "SENHA_FORTE_DO_ORGANIZADOR"
 APP_URL = "https://SEU-APP.streamlit.app"
 ```
 
-4. Publique o app. O gerente acessa `https://SEU-APP.streamlit.app/config`, informa `INVITE_ADMIN_PASSWORD` e cadastra cada participante com nome, e-mail e endereco.
+4. Publique o app. O gerente acessa `https://SEU-APP.streamlit.app/config`, informa `INVITE_ADMIN_PASSWORD` e cadastra cada participante com nome e e-mail.
 5. Copie o link de senha gerado e compartilhe-o em mensagem privada com o participante. Ao abrir o link, a pessoa define a senha e depois entra pela tela inicial usando e-mail e senha. Para redefinir uma senha, gere outro link no cadastro da pessoa em `/config`.
 
 Nao e necessario configurar SMTP. Os links sao credenciais temporarias de uso unico; quem tiver acesso ao link podera definir ou redefinir a senha daquela conta. Compartilhe cada link somente com o dono do e-mail correspondente.

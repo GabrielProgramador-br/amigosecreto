@@ -473,17 +473,19 @@ def tela_configuracao():
         st.session_state.pop("gerente_autenticado", None)
         st.rerun()
 
-    st.write("Cadastre participantes, atualize seus dados e gere links individuais de senha.")
+    st.write(
+        "Cadastre participantes com nome e e-mail. Cada pessoa informa o próprio endereço "
+        "ao entrar pela primeira vez."
+    )
     with st.expander("➕ Cadastrar participante", expanded=True):
         with st.form("formulario_novo_participante"):
             novo_nome = st.text_input("Nome do participante")
             novo_email = st.text_input("E-mail do participante").strip().lower()
-            novo_endereco = st.text_area("Endereço para entrega")
             cadastrar = st.form_submit_button("Cadastrar e gerar link de senha")
 
         if cadastrar:
-            if not novo_nome.strip() or not novo_email or not novo_endereco.strip():
-                st.warning("Preencha nome, e-mail e endereço.")
+            if not novo_nome.strip() or not novo_email:
+                st.warning("Preencha nome e e-mail.")
             else:
                 usuario_criado = None
                 try:
@@ -507,7 +509,7 @@ def tela_configuracao():
                             "email": novo_email,
                             "auth_user_id": usuario_criado["id"],
                             "nome": novo_nome.strip(),
-                            "endereco": novo_endereco.strip(),
+                            "endereco": "",
                         },
                         preferencias="return=minimal",
                     )
@@ -617,11 +619,11 @@ def tela_configuracao():
             with st.form(f"formulario_editar_{indice}"):
                 st.text_input("E-mail (não editável)", value=email, disabled=True)
                 nome = st.text_input("Nome", value=participante["nome"])
-                endereco = st.text_area("Endereço", value=participante["endereco"])
-                salvar = st.form_submit_button("Salvar alterações")
+                st.caption("O participante informa e atualiza o próprio endereço no cadastro.")
+                salvar = st.form_submit_button("Salvar nome")
             if salvar:
-                if not nome.strip() or not endereco.strip():
-                    st.warning("Nome e endereço são obrigatórios.")
+                if not nome.strip():
+                    st.warning("O nome é obrigatório.")
                 else:
                     try:
                         requisicao_supabase(
@@ -630,7 +632,7 @@ def tela_configuracao():
                             metodo="PATCH",
                             admin=True,
                             params={"email": f"eq.{email}"},
-                            dados={"nome": nome.strip(), "endereco": endereco.strip()},
+                            dados={"nome": nome.strip()},
                             preferencias="return=minimal",
                         )
                         st.success("Dados atualizados.")
@@ -788,6 +790,7 @@ def main():
             endereco = st.text_area(
                 "Endereço Completo para Entrega",
                 value=perfil["endereco"] if perfil else "",
+                help="Preencha seu endereço para que o grupo saiba onde entregar seu presente.",
             )
             salvar = st.form_submit_button("Salvar Cadastro")
 
