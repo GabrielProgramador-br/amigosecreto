@@ -11,26 +11,195 @@ COOKIE_SESSAO = "amigo_secreto_refresh_token"
 COOKIE_SESSAO_DURACAO = 30 * 24 * 60 * 60
 
 st.set_page_config(
-    page_title="Amigo Secreto Online",
+    page_title="Amigo Secreto | Especial de Natal",
     page_icon="🎁",
     layout="centered",
 )
 
 st.markdown("""
     <style>
-    .stApp { background-color: #fdfbf7; }
-    h1, h2, h3 { color: #d32f2f; font-family: 'Arial', sans-serif; }
-    .stButton>button {
-        background-color: #d32f2f;
-        color: white;
-        border-radius: 8px;
-        border: none;
-        width: 100%;
-        font-weight: bold;
+    :root {
+        --pine: #145238;
+        --pine-dark: #0c3928;
+        --berry: #a9363d;
+        --gold: #e7bd72;
+        --ink: #263b32;
+        --muted: #6f7e75;
+        --surface: rgba(255, 255, 255, 0.88);
     }
-    .stButton>button:hover { background-color: #b71c1c; color: white; }
+
+    .stApp {
+        color: var(--ink);
+        background:
+            radial-gradient(ellipse at 8% 2%, rgba(231, 189, 114, 0.16), transparent 28rem),
+            radial-gradient(ellipse at 96% 18%, rgba(20, 82, 56, 0.09), transparent 30rem),
+            #f7f6f0;
+    }
+    [data-testid="stHeader"] { background: transparent; }
+    [data-testid="stMainBlockContainer"] {
+        max-width: 880px;
+        padding-top: 2rem;
+        padding-bottom: 4rem;
+    }
+    h1, h2, h3 {
+        color: var(--pine);
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+        letter-spacing: -0.025em;
+    }
+    h2 { margin-top: 0.4rem; }
+    p, label, [data-testid="stMarkdownContainer"] {
+        color: var(--ink);
+    }
+
+    .holiday-hero {
+        position: relative;
+        overflow: hidden;
+        margin: 0.25rem 0 1.5rem;
+        padding: 2.35rem 2.5rem 2.15rem;
+        border: 1px solid rgba(231, 189, 114, 0.65);
+        border-bottom: 4px solid var(--gold);
+        border-radius: 24px;
+        color: #fff;
+        background:
+            radial-gradient(circle at 88% 18%, rgba(231, 189, 114, 0.22), transparent 9rem),
+            linear-gradient(132deg, var(--pine-dark), #1a6845 72%, #24714c);
+        box-shadow: 0 18px 42px rgba(20, 58, 39, 0.15);
+    }
+    .holiday-hero::after {
+        position: absolute;
+        right: 1.35rem;
+        bottom: -1.7rem;
+        color: rgba(255, 255, 255, 0.12);
+        content: "❄";
+        font-size: 8rem;
+        line-height: 1;
+        pointer-events: none;
+    }
+    .holiday-hero .hero-kicker {
+        margin: 0 0 0.65rem;
+        color: #f2d89e;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+    .holiday-hero h1 {
+        position: relative;
+        z-index: 1;
+        margin: 0;
+        color: #fff;
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+        font-size: clamp(2rem, 5vw, 3.1rem);
+        font-weight: 700;
+        letter-spacing: -0.045em;
+        line-height: 1.1;
+    }
+    .holiday-hero .hero-subtitle {
+        position: relative;
+        z-index: 1;
+        max-width: 34rem;
+        margin: 0.8rem 0 0;
+        color: rgba(255, 255, 255, 0.83);
+        font-size: 1rem;
+        line-height: 1.65;
+    }
+    [data-testid="stCaptionContainer"] {
+        color: var(--muted);
+        font-size: 0.88rem;
+    }
+
+    [data-testid="stTabs"] [data-baseweb="tab-list"] {
+        gap: 0.4rem;
+        padding: 0.4rem;
+        border: 1px solid #e8e8df;
+        border-radius: 15px;
+        background: rgba(255, 255, 255, 0.72);
+    }
+    [data-testid="stTabs"] button[data-baseweb="tab"] {
+        min-height: 2.8rem;
+        border-radius: 11px;
+        color: #64746a;
+        font-weight: 600;
+    }
+    [data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
+        color: #fff;
+        background: var(--pine);
+    }
+    [data-testid="stTabs"] [data-baseweb="tab-highlight"] {
+        background-color: var(--gold);
+    }
+    [data-testid="stTabs"] [data-baseweb="tab-panel"] {
+        padding: 1.35rem 0.15rem 0;
+    }
+
+    .stButton > button, [data-testid="stFormSubmitButton"] > button {
+        min-height: 2.8rem;
+        border: 1px solid var(--berry);
+        border-radius: 11px;
+        color: #fff;
+        background: linear-gradient(135deg, #b84648, var(--berry));
+        font-weight: 700;
+        transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+    .stButton > button:hover, [data-testid="stFormSubmitButton"] > button:hover {
+        border-color: #852d34;
+        color: #fff;
+        background: #922f37;
+        box-shadow: 0 6px 16px rgba(169, 54, 61, 0.2);
+        transform: translateY(-1px);
+    }
+    [data-testid="stTextInput"] input,
+    [data-testid="stTextArea"] textarea,
+    [data-testid="stDateInput"] input,
+    [data-testid="stTimeInput"] input,
+    [data-baseweb="select"] > div {
+        border-color: #dfe4dc;
+        border-radius: 10px;
+        background-color: rgba(255, 255, 255, 0.92);
+    }
+    [data-testid="stTextInput"] input:focus,
+    [data-testid="stTextArea"] textarea:focus {
+        border-color: var(--pine);
+        box-shadow: 0 0 0 1px var(--pine);
+    }
+    [data-testid="stExpander"] {
+        overflow: hidden;
+        border: 1px solid #e5e5dc;
+        border-radius: 14px;
+        background: var(--surface);
+    }
+    [data-testid="stAlert"] { border-radius: 12px; }
+    hr { border-color: #e5e5dc; }
+
+    @media (max-width: 640px) {
+        [data-testid="stMainBlockContainer"] {
+            padding: 1rem 1rem 3rem;
+        }
+        .holiday-hero {
+            padding: 1.8rem 1.4rem;
+            border-radius: 19px;
+        }
+        [data-testid="stTabs"] [data-baseweb="tab-list"] { gap: 0.1rem; }
+        [data-testid="stTabs"] button[data-baseweb="tab"] {
+            padding: 0.45rem 0.55rem;
+            font-size: 0.82rem;
+        }
+    }
     </style>
 """, unsafe_allow_html=True)
+
+
+def render_hero():
+    st.markdown("""
+        <section class="holiday-hero">
+            <p class="hero-kicker">✦ Um encontro especial ✦</p>
+            <h1>Amigo Secreto</h1>
+            <p class="hero-subtitle">
+                Presentes, boas conversas e momentos para guardar.
+                Vamos preparar nossa celebração?
+            </p>
+        </section>
+    """, unsafe_allow_html=True)
 
 
 def carregar_configuracao():
@@ -142,8 +311,9 @@ def confirmar_link(configuracao, cookies):
     if not token_hash or tipo not in {"invite", "email", "magiclink"}:
         return False
 
-    st.subheader("Confirmar acesso ao Amigo Secreto")
-    st.write("Confirme para ativar o link individual compartilhado pelo organizador.")
+    render_hero()
+    st.subheader("Confirmar seu convite")
+    st.write("Confirme para ativar seu link individual e participar da celebração.")
     if st.button("Confirmar e entrar"):
         try:
             sessao = requisicao_supabase(
@@ -168,11 +338,11 @@ def tela_entrada(configuracao, cookies):
     if confirmar_link(configuracao, cookies):
         return
 
-    st.title("🎁 Amigo Secreto Online")
+    render_hero()
     st.subheader("Acessar com link individual")
-    st.write("Peça ao organizador um link para o e-mail que foi convidado.")
+    st.write("Peça ao organizador um link individual para entrar na nossa celebração.")
 
-    with st.expander("Área do organizador: convidar participante"):
+    with st.expander("🎄 Área do organizador · convidar participante"):
         with st.form("formulario_convite"):
             senha = st.text_input("Senha do organizador", type="password")
             email_convidado = st.text_input("E-mail do participante").strip().lower()
@@ -325,7 +495,7 @@ def main():
         limpar_sessao(configuracao, cookies)
         st.rerun()
 
-    st.title("🎁 Amigo Secreto Online")
+    render_hero()
     st.caption(f"Conectado como {usuario['email']}")
 
     try:
